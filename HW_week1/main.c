@@ -46,14 +46,14 @@ void readUserDataFromFile()
 
 void writeUserDataToFile()
 {
-    FILE* fp = fopen(accountDataFile, "w");
+    FILE *fp = fopen(accountDataFile, "w");
     if (fp == NULL)
     {
         printf("Error opening file %s for writing.\n", accountDataFile);
         return;
     }
 
-    Node* temp = userList;
+    Node *temp = userList;
     while (temp != NULL)
     {
         fprintf(fp, "%s %s %d\n", temp->data.username, temp->data.password, temp->data.status);
@@ -82,9 +82,9 @@ void registerUser()
     char password[MAX_PASSWORD_LENGTH];
     int status;
 
-    printf("Enter username: ");
+    printf("Username: ");
     scanf(" %[^\n]", username);
-    printf("Enter password: ");
+    printf("Password: ");
     scanf(" %[^\n]", password);
 
     // Check if username or password contains spaces
@@ -111,15 +111,14 @@ void registerUser()
     User tmp_user = createUser(username, password, status);
     if (userExists(userList, &tmp_user) == 1)
     {
-        printf("User already exists.\n");
+        printf("Account existed\n");
     }
     else
     {
         userList = addUser(userList, tmp_user);
-        printf("User %s successfully registered.\n", username);
+        printf("Succesfully registration. Activation required\n");
     }
 
-    printMenu();
 }
 
 void activeUser()
@@ -127,14 +126,16 @@ void activeUser()
     char username[MAX_USERNAME_LENGTH];
     char password[MAX_PASSWORD_LENGTH];
     char activeUserCode[MAX_USERNAME_LENGTH];
-    printf("Enter username: ");
-    scanf(" %[^\n]", username);
-    printf("Enter password: ");
-    scanf(" %[^\n]", password);
-    printf("Enter active code: ");
-    scanf(" %[^\n]", activeUserCode);
-    // Check if username or password contains spaces
+
+    int count = 0;
     int i;
+    printf("Username: ");
+    scanf(" %[^\n]", username);
+    printf("Password: ");
+    scanf(" %[^\n]", password);
+
+    // Check if username or password contains spaces
+
     for (i = 0; i < strlen(username); i++)
     {
         if (username[i] == ' ')
@@ -151,37 +152,64 @@ void activeUser()
             return;
         }
     }
-    for (i = 0; i < strlen(activeUserCode); i++)
-    {
-        if (activeUserCode[i] == ' ')
-        {
-            printf("Activation code cannot contain spaces. Please enter a valid password.\n");
-            return;
-        }
-    }
-
-    // Convert activeUserCode to lowercase
-    for (int i = 0; activeUserCode[i]; i++)
-    {
-        activeUserCode[i] = tolower(activeUserCode[i]);
-    }
-
-    // Compare activeUserCode with predefined variable in lowercase
 
     User tmp_user = createUser(username, password, -1);
+    int login_status = userExists(userList, &tmp_user);
 
-    if (strcmp(activeUserCode, predefinedCode) == 0 && userExists(userList, &tmp_user))
+    if (login_status == 0)
     {
-        printf("Activation code is correct. ");
-        printf("You are now active.\n");
-        User tmp_user = createUser(username, password, -1);
-        active(userList, tmp_user);
+        printf("User %s is not exist.\n", tmp_user.username);
+        return;
     }
-    else
+    else if (login_status == -1)
     {
-        printf("Activation code or credential is incorrect. ");
+        printf("Wrong passsword !.\n");
+        return;
     }
-    printMenu();
+
+    while (1 == 1)
+    {
+        if (count == 5)
+        {
+            printf("Activation code is incorrect.\nAccount is blocked\n");
+            block(userList, tmp_user);
+            break;
+        }
+        printf("Code: ");
+        scanf(" %[^\n]", activeUserCode);
+
+        for (i = 0; i < strlen(activeUserCode); i++)
+        {
+            if (activeUserCode[i] == ' ')
+            {
+                printf("Activation code cannot contain spaces. Please enter a valid password.\n");
+                return;
+            }
+        }
+
+        // Convert activeUserCode to lowercase
+        for (int i = 0; activeUserCode[i]; i++)
+        {
+            activeUserCode[i] = tolower(activeUserCode[i]);
+        }
+
+        // Compare activeUserCode with predefined variable in lowercase
+
+
+        if (strcmp(activeUserCode, predefinedCode) == 0)
+        {
+            printf("Account is activated.\n");
+            User tmp_user = createUser(username, password, -1);
+            active(userList, tmp_user);
+            return;
+        }
+        else if (count < 4)
+        {           
+           printf("Account is not activated.\n");
+        }
+        count++;
+    }
+
 }
 
 void setStatusLogin(User tmp_user)
@@ -196,7 +224,7 @@ void signIn()
 {
     int count = 0;
     char username[MAX_USERNAME_LENGTH];
-    printf("Enter username: ");
+    printf("Username: ");
     scanf(" %[^\n]", username);
     int i;
     for (i = 0; i < strlen(username); i++)
@@ -220,7 +248,7 @@ void signIn()
     while (1 == 1)
     {
         char password[MAX_PASSWORD_LENGTH];
-        printf("Enter password: ");
+        printf("Password: ");
         scanf(" %[^\n]", password);
 
         // Check if username or password contains spaces
@@ -238,7 +266,7 @@ void signIn()
         if (count == 3)
         {
             if (login_status == 1)
-                printf("User %s is locked.\n", username);
+                printf("Account is blocked\n");
             block(userList, tmp_user);
             break;
         }
@@ -275,14 +303,14 @@ void searchUser()
 {
     if (isAnonymous())
     {
-        printf("You must be logged in.\n");
+        printf("Account is not sign in\n");
     }
     else
     {
         char username[MAX_USERNAME_LENGTH];
         char password[MAX_PASSWORD_LENGTH];
 
-        printf("Enter username: ");
+        printf("Username: ");
         scanf(" %[^\n]", username);
 
         // Check if username or password contains spaces
@@ -300,7 +328,7 @@ void searchUser()
         int search_status = userExists(userList, &tmp_user);
         if (search_status == 0)
         {
-            printf("User does not exist.\n");
+            printf("Cannot find account\n");
         }
         else
         {
@@ -314,7 +342,7 @@ void changePassword()
 {
     if (isAnonymous())
     {
-        printf("You must be logged in.\n");
+        printf("Account is not sign in\n");
     }
     else
     {
@@ -348,11 +376,11 @@ void changePassword()
         {
             strcpy(currentUser.password, password);
             updatePassword(userList, currentUser);
-            printf("Your password has been changed.\n");
+            printf("Password is changed.\n");
         }
         else
         {
-            printf("Your current password is incorrect.\n");
+            printf("Current password is incorrect. Please try again\n");
         }
     }
 }
@@ -361,16 +389,15 @@ void signOut()
 {
     if (isAnonymous())
     {
-        printf("You must be logged in.\n");
+        printf("Account is not sign in\n");
     }
     else
     {
-        printf("Goodbye %s!\n", currentUser.username);
+        printf("Goodbye %s\n", currentUser.username);
 
         strcpy(currentUser.username, "anonymous");
         strcpy(currentUser.password, "anonymous");
         currentUser.status = -1;
-        printf("You have been signed out.\n");
     }
 }
 
