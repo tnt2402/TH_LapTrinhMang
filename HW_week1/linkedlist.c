@@ -11,7 +11,7 @@ typedef struct user
 {
     char username[MAX_USERNAME_LENGTH];
     char password[MAX_PASSWORD_LENGTH];
-    char status[MAX_USERNAME_LENGTH];
+    int status;
 } User;
 
 typedef struct node
@@ -84,7 +84,7 @@ void displayList(Node* head)
     Node* temp = head;
     while (temp != NULL)
     {
-        printf("Username: %s, Password: %s, Status: %s\n", temp->data.username, temp->data.password, temp->data.status);
+        printf("Username: %s, Password: %s, Status: %d\n", temp->data.username, temp->data.password, temp->data.status);
         temp = temp->next;
     }
 }
@@ -101,12 +101,12 @@ void freeList(Node* head)
     }
 }
 
-User createUser(const char* username, const char* password, const char* status)
+User createUser(const char* username, const char* password, int status)
 {
     User newUser;
     strcpy(newUser.username, username);
     strcpy(newUser.password, password);
-    strcpy(newUser.status, status);
+    newUser.status = status;
     return newUser;
 }
 
@@ -114,18 +114,72 @@ Node* addUser(Node* userList, User account) {
     return insertAtEnd(userList, account);
 }
 
-int userExists(Node* head, const char* username)
+int userExists(Node* head, User* tmp_user)
 {
     Node* temp = head;
     while (temp != NULL)
     {
-        if (strcmp(temp->data.username, username) == 0)
+        if (strcmp(temp->data.username, tmp_user->username) == 0)
         {
-            return 1;  // User exists
+            tmp_user->status = temp->data.status;
+
+            if (strcmp(temp->data.password, tmp_user->password) == 0) {
+                return 1; // Username and password are correct
+            } else {
+                return -1; // Wrong password
+            }
         }
         
         temp = temp->next;
     }
   
     return 0;  // User does not exist
+}
+
+void active(Node* head, User tmp_user) {
+    Node* temp = head;
+    while (temp != NULL)
+    {
+        if (strcmp(temp->data.username, tmp_user.username) == 0 && strcmp(temp->data.password, tmp_user.password) == 0)
+        {
+            temp->data.status = 1;
+            return;  
+        }
+        
+        temp = temp->next;
+    }
+  
+    return;  
+}
+
+void block(Node* head, User tmp_user) {
+    Node* temp = head;
+    while (temp != NULL)
+    {
+        if (strcmp(temp->data.username, tmp_user.username) == 0)
+        {
+            temp->data.status = 0 ;
+            return;  
+        }
+        
+        temp = temp->next;
+    }
+  
+    return;  
+}
+
+void updatePassword(Node* head, User tmp_user) {
+    Node* temp = head;
+    while (temp != NULL)
+    {
+        if (strcmp(temp->data.username, tmp_user.username) == 0)
+        {
+            strcpy(temp->data.password, tmp_user.password);
+            return; 
+        }
+        
+        temp = temp->next;
+    }
+  
+    return;  
 }
