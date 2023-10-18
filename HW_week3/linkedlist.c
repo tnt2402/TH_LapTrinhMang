@@ -4,6 +4,7 @@
 
 #define MAX_USERNAME_LENGTH 20
 #define MAX_PASSWORD_LENGTH 20
+#define MAX_HOMEPAGE_LENGTH 30
 
 // Struct definitions
 
@@ -11,6 +12,7 @@ typedef struct user
 {
     char username[MAX_USERNAME_LENGTH];
     char password[MAX_PASSWORD_LENGTH];
+    char homepage[MAX_HOMEPAGE_LENGTH];
     int status;
 } User;
 
@@ -84,7 +86,7 @@ void displayList(Node* head)
     Node* temp = head;
     while (temp != NULL)
     {
-        printf("Username: %s, Password: %s, Status: %d\n", temp->data.username, temp->data.password, temp->data.status);
+        printf("Username: %s, Password: %s, Status: %d, Homepage: %s\n", temp->data.username, temp->data.password, temp->data.status, temp->data.homepage);
         temp = temp->next;
     }
 }
@@ -101,13 +103,13 @@ void freeList(Node* head)
     }
 }
 
-User createUser(const char* username, const char* password, int status)
+User createUser(const char* username, const char* password, int status, const char* homepage)
 {
     User newUser;
     strcpy(newUser.username, username);
     strcpy(newUser.password, password);
     newUser.status = status;
-
+    strcpy(newUser.homepage, homepage);
     return newUser;
 }
 
@@ -123,6 +125,7 @@ int userExists(Node* head, User* tmp_user)
         if (strcmp(temp->data.username, tmp_user->username) == 0)
         {
             tmp_user->status = temp->data.status;
+            strcpy(tmp_user->homepage, temp->data.homepage);
 
             if (strcmp(temp->data.password, tmp_user->password) == 0) {
                 return 1; // Username and password are correct

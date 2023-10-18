@@ -1,0 +1,6 @@
+To compile:
+  make
+To run:
+  ./hw1
+To check for memory leaks (this will attempt to run with valgrind):
+  make leaks
