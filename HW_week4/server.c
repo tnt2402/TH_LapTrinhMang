@@ -6,8 +6,8 @@
 #include <netinet/in.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 #include "linkedlist.h"
-
 
 // global variables
 #define MAX_USERNAME_LENGTH 20
@@ -158,13 +158,51 @@ int main(int argc, char *argv[])
             }
             else
             {
-                strcpy(currentUser.password, password);
-                updatePassword(userList, currentUser);
-                strcpy(msg, "Password is changed.");
-                sendMessage(listenfd, msg, &cliaddr, len);
-                printf("Password is changed.\n");
-                writeUserDataToFile();
-                continue;
+                int hasSpecialChar = 0;
+                char alphabets[1024] = ""; // Initialize the strings with empty strings
+                char digits[1024] = "";
+                for (int i = 0; i < strlen(password); i++)
+                {
+                    if ((password[i] >= 'a' && password[i] <= 'z') || (password[i] >= 'A' && password[i] <= 'Z'))
+                    {
+                        strncat(alphabets, &password[i], 1);
+                    }
+                    else if (isdigit(password[i]))
+                    {
+                        strncat(digits, &password[i], 1);
+                    }
+                    else
+                    {
+                        // Found a special character
+                        hasSpecialChar = 1;
+                        break;
+                    }
+                }
+
+                if (hasSpecialChar)
+                {
+                    strcpy(msg, "Error\n");
+                    printf("%s\n", msg);
+                    sendMessage(listenfd, msg, &cliaddr, len);
+                    continue;
+                }
+                else
+                {
+                    // printf("Xâu chứa các ký tự chữ cái: %s\n", alphabets);
+                    // printf("Xâu chứa các ký tự chữ số: %s\n", digits);
+                    // strcpy(msg, "Password is changed.");
+                    strcpy(msg, alphabets);
+                    strcat(msg, "\n");
+                    strcat(msg, digits);
+                    sendMessage(listenfd, msg, &cliaddr, len);
+
+                    strcpy(currentUser.password, password);
+                    updatePassword(userList, currentUser);
+
+                    printf("Password is changed.\n");
+                    writeUserDataToFile();
+                    continue;
+                }
             }
         }
         len = sizeof(cliaddr);
