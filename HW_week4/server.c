@@ -5,29 +5,40 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <ctype.h>
 #include "linkedlist.h"
+#include <ctype.h>
 
-// global variables
 #define MAX_USERNAME_LENGTH 20
 #define MAX_PASSWORD_LENGTH 20
 Node *userList;
-const char *predefinedCode;
-User currentUser;
-const char *accountDataFile;
+const char *code;
+Acc currentUser;
+const char *data;
 #define MAXLINE 1000
 
-void init()
-{
-    currentUser = createUser("anonymous", "anonymous", -1, "");
-    predefinedCode = "20205027";
-    userList = NULL;
-    accountDataFile = "nguoidung.txt";
+void setStatusLogin(Acc tmp_user){
+    currentUser = tmp_user;
+    printf("You are now logged in.\n");
 }
 
-void readUserDataFromFile()
+int isnhat(){
+    return (strcmp(currentUser.username, "nhat") == 0 &&
+            strcmp(currentUser.password, "nhat") == 0 &&
+            currentUser.status == -1);
+}
+
+int main(int argc, char *argv[])
 {
+    if (argc != 2)
+    {
+        printf("Cmd: ./server PortNumber\n");
+        return 1;
+    }
+    currentUser = createUser("nhat", "nhat", -1, "");
+    code = "20205111";
+    userList = NULL;
+    data = "nguoidung.txt";
+
     FILE *file;
     char username[MAX_USERNAME_LENGTH];
     char password[MAX_PASSWORD_LENGTH];
@@ -35,187 +46,127 @@ void readUserDataFromFile()
 
     int status;
 
-    file = fopen(accountDataFile, "r");
+    file = fopen(data, "r");
     if (file == NULL)
     {
         printf("Failed to open the file.");
-        return;
+        return 0;
     }
 
     while (fscanf(file, "%s %s %d %s", username, password, &status, homepage) == 4)
     {
-        User tmp_user = createUser(username, password, status, homepage);
+        Acc tmp_user = createUser(username, password, status, homepage);
 
         userList = addUser(userList, tmp_user);
     }
 
-    fclose(file);
-}
-
-void writeUserDataToFile()
-{
-    FILE *fp = fopen(accountDataFile, "w");
-    if (fp == NULL)
-    {
-        printf("Error opening file %s for writing.\n", accountDataFile);
-        return;
-    }
-
-    Node *temp = userList;
-    while (temp != NULL)
-    {
-        fprintf(fp, "%s %s %d %s\n", temp->data.username, temp->data.password, temp->data.status, temp->data.homepage);
-        temp = temp->next;
-    }
-
-    fclose(fp);
-}
-
-void setStatusLogin(User tmp_user)
-{
-    // set currentUser to tmp_user
-    currentUser = tmp_user;
-
-    printf("You are now logged in.\n");
-}
-
-int isAnonymous()
-{
-    return (strcmp(currentUser.username, "anonymous") == 0 &&
-            strcmp(currentUser.password, "anonymous") == 0 &&
-            currentUser.status == -1);
-}
-
-// Function to send message to the specified address
-void sendMessage(int socket_fd, const char *message, struct sockaddr_in *dest_addr, socklen_t dest_len)
-{
-    sendto(socket_fd, message, strlen(message), 0, (struct sockaddr *)dest_addr, dest_len);
-}
-
-// Function to receive message from any client
-void receiveMessage(int socket_fd, char *buffer, struct sockaddr *src_addr, socklen_t *src_len)
-{
-    ssize_t n = recvfrom(socket_fd, buffer, MAXLINE, 0, src_addr, src_len);
-    buffer[n] = '\0';
-    // return n;
-}
-
-int main(int argc, char *argv[])
-{
-    if (argc != 2)
-    {
-        printf("Usage: ./server PortNumber\n");
-        return 1;
-    }
-    init();
-    readUserDataFromFile();
+    fclose(file);;
 
     int PORT = atoi(argv[1]);
 
-    char buffer[MAXLINE];
+    char buff[100];
     int listenfd;
     socklen_t len;
-    struct sockaddr_in servaddr, cliaddr;
-    memset(&servaddr, 0, sizeof(servaddr));
+    struct sockaddr_in serveraddress, clientaddress;
+    memset(&serveraddress, 0, sizeof(serveraddress));
 
-    // Create a UDP Socket
+    
     listenfd = socket(AF_INET, SOCK_DGRAM, 0);
-    servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
-    servaddr.sin_port = htons(PORT);
-    servaddr.sin_family = AF_INET;
+    serveraddress.sin_addr.s_addr = htonl(INADDR_ANY);
+    serveraddress.sin_port = htons(PORT);
+    serveraddress.sin_family = AF_INET;
 
-    // Bind server address to socket descriptor
-    bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+    
+    bind(listenfd, (struct sockaddr *)&serveraddress, sizeof(serveraddress));
 
-    printf("[+] Server listening on port %d\n", PORT);
+    printf("Server listening on port %d\n", PORT);
 
-    // Receive the datagram
-    len = sizeof(cliaddr);
-
+    
+    len = sizeof(clientaddress);
     char msg[MAXLINE];
-    char username[MAXLINE], password[MAXLINE];
 
     int count = 0;
-    // int n;
+    int n;
+    while (1){
+        if (!isnhat()){
 
-    while (1)
-    {
-        if (!isAnonymous())
-        {
-            // ask for new password
-            receiveMessage(listenfd, buffer, (struct sockaddr *)&cliaddr, &len);
-            strcpy(password, buffer);
-            if (strcmp(password, "bye") == 0)
-            {
-                strcpy(msg, "Seeya!");
-                sendMessage(listenfd, msg, &cliaddr, len);
-                printf("User %s logged out\n", currentUser.username);
-                strcpy(currentUser.username, "anonymous");
-                strcpy(currentUser.password, "anonymous");
+            n = recvfrom(listenfd, buff, sizeof(buff), 0, (struct sockaddr *)&clientaddress, &len); // Receive message from client
+            buff[n] = '\0';
+            strcpy(password, buff);
+
+            if (strcmp(password, "bye") == 0){
+                strcpy(msg, "Goodbye!");
+                sendto(listenfd, msg, strlen(msg), 0, (struct sockaddr *)&clientaddress, sizeof(clientaddress));
+                strcpy(currentUser.username, "nhat");
+                strcpy(currentUser.password, "nhat");
                 currentUser.status = -1;
-                // close(listenfd);
+                continue;
+            } else {
+                // int SpecialChar = 0;
+                // char charr[1024] = ""; 
+                // char number[1024] = "";
+                
+                // for (int i = 0; i < strlen(password); i++){
+                //     if ((password[i] >= 'a' && password[i] <= 'z') || (password[i] >= 'A' && password[i] <= 'Z')){
+                //         strncat(charr, &password[i], 1);
+                //     } else if (isdigit(password[i])){
+                //         strncat(number, &password[i], 1);
+                //     } else {
+                //         SpecialChar = 1;
+                //         break;
+                //     }
+                // }
+
+                // if (SpecialChar){
+                //     strcpy(msg, "Error password.\n");
+                //     printf("%s\n", msg);
+                //     sendto(listenfd, msg, strlen(msg), 0, (struct sockaddr *)&clientaddress, sizeof(clientaddress));
+                //     continue;
+                // } else {
+                //     strcpy(msg, charr);
+                //     strcat(msg, "\n");
+                //     strcat(msg, number);
+                    
+                //     sendto(listenfd, msg, strlen(msg), 0, (struct sockaddr *)&clientaddress, sizeof(clientaddress));
+
+                //     strcpy(currentUser.password, password);
+                //     updatePassword(userList, currentUser);
+
+                //     printf("Password is changed.\n");
+                    
+                //     FILE *fp = fopen(data, "w");
+                //     if (fp == NULL){
+                //         printf("Error opening file %s for writing.\n", data);
+                //         return 0;
+                //     }
+
+                //     Node *temp = userList;
+                    
+                //     while (temp != NULL){
+                //         fprintf(fp, "%s %s %d %s\n", temp->data.username, temp->data.password, temp->data.status, temp->data.homepage);
+                //         temp = temp->next;
+                //     }
+
+                //     fclose(fp);
+                //     continue;
+                // }
+                strcpy(currentUser.password, password);
+                updatePassword(userList, currentUser);
+                printf("Password is changed.\n");
                 continue;
             }
-            else
-            {
-                int hasSpecialChar = 0;
-                char alphabets[1024] = ""; // Initialize the strings with empty strings
-                char digits[1024] = "";
-                for (int i = 0; i < strlen(password); i++)
-                {
-                    if ((password[i] >= 'a' && password[i] <= 'z') || (password[i] >= 'A' && password[i] <= 'Z'))
-                    {
-                        strncat(alphabets, &password[i], 1);
-                    }
-                    else if (isdigit(password[i]))
-                    {
-                        strncat(digits, &password[i], 1);
-                    }
-                    else
-                    {
-                        // Found a special character
-                        hasSpecialChar = 1;
-                        break;
-                    }
-                }
 
-                if (hasSpecialChar)
-                {
-                    strcpy(msg, "Error\n");
-                    printf("%s\n", msg);
-                    sendMessage(listenfd, msg, &cliaddr, len);
-                    continue;
-                }
-                else
-                {
-                    // printf("Xâu chứa các ký tự chữ cái: %s\n", alphabets);
-                    // printf("Xâu chứa các ký tự chữ số: %s\n", digits);
-                    // strcpy(msg, "Password is changed.");
-                    strcpy(msg, alphabets);
-                    strcat(msg, "\n");
-                    strcat(msg, digits);
-                    sendMessage(listenfd, msg, &cliaddr, len);
+        len = sizeof(clientaddress);
+        int n = recvfrom(listenfd, buff, sizeof(buff), 0, (struct sockaddr *)&clientaddress, &len);
+        buff[n] = '\0';
+        strcpy(username, buff);
+        n = recvfrom(listenfd, buff, sizeof(buff), 0, (struct sockaddr *)&clientaddress, &len);
+        buff[n] = '\0';
+        strcpy(password, buff);
 
-                    strcpy(currentUser.password, password);
-                    updatePassword(userList, currentUser);
-
-                    printf("Password is changed.\n");
-                    writeUserDataToFile();
-                    continue;
-                }
-            }
-        }
-        len = sizeof(cliaddr);
-        receiveMessage(listenfd, buffer, (struct sockaddr *)&cliaddr, &len);
-        strcpy(username, buffer);
-        receiveMessage(listenfd, buffer, (struct sockaddr *)&cliaddr, &len);
-        strcpy(password, buffer);
-
-        for (int i = 0; i < strlen(username); i++)
-        {
-            if (username[i] == ' ')
-            {
-                printf("Username cannot contain spaces. Please enter a valid username.\n");
+        for (int i = 0; i < strlen(username); i++){
+            if (username[i] == ' '){
+                printf("Username can not contain space. Please enter username again.\n");
                 continue;
             }
         }
@@ -224,29 +175,27 @@ int main(int argc, char *argv[])
         {
             if (password[i] == ' ')
             {
-                printf("Password cannot contain spaces. Please enter a valid password.\n");
+                printf("Password cannot contain space. Please enter password again.\n");
                 continue;
             }
         }
 
-        User tmp_user = createUser(username, password, -1, "");
+        Acc tmp_user = createUser(username, password, -1, "");
         int login_status = userExists(userList, &tmp_user);
-
         if (count == 3)
         {
             if (login_status == 1)
                 printf("Account is blocked\n");
             block(userList, tmp_user);
             strcpy(msg, "Account is blocked");
-            sendMessage(listenfd, msg, &cliaddr, len);
-            count = 0;
+            sendto(listenfd, msg, strlen(msg), 0, (struct sockaddr *)&clientaddress, sizeof(clientaddress));
             continue;
         }
 
         if (tmp_user.status == 0)
         {
             strcpy(msg, "Account is blocked");
-            sendMessage(listenfd, msg, &cliaddr, len);
+            sendto(listenfd, msg, strlen(msg), 0, (struct sockaddr *)&clientaddress, sizeof(clientaddress));
             printf("User %s is locked.\n", tmp_user.username);
             printf("Contact administration for unlocking the user\n");
             continue;
@@ -255,7 +204,7 @@ int main(int argc, char *argv[])
         if (login_status == 1)
         {
             strcpy(msg, "OK");
-            sendMessage(listenfd, msg, &cliaddr, len);
+            sendto(listenfd, msg, strlen(msg), 0, (struct sockaddr *)&clientaddress, sizeof(clientaddress));
             printf("User %s successfully signed in.\n", username);
             setStatusLogin(tmp_user);
             continue;
@@ -263,13 +212,11 @@ int main(int argc, char *argv[])
         else
         {
             strcpy(msg, "not OK");
-            sendMessage(listenfd, msg, &cliaddr, len);
+            sendto(listenfd, msg, strlen(msg), 0, (struct sockaddr *)&clientaddress, sizeof(clientaddress));
             printf("Invalid username/password.\n");
         }
         count++;
     }
-
-    close(listenfd);
-
+    }
     return 0;
 }
