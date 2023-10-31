@@ -39,6 +39,7 @@ void readUserDataFromFile()
     if (file == NULL)
     {
         printf("Failed to open the file.");
+        exit(1);
         return;
     }
 
@@ -87,39 +88,48 @@ int isAnonymous()
 }
 
 // Function to send message to the specified address
-void sendMessage(int socket_fd, const char *message, struct sockaddr_in *dest_addr, socklen_t dest_len)
-{
-    sendto(socket_fd, message, strlen(message), 0, (struct sockaddr *)dest_addr, dest_len);
+// Old functions have been commended
+// void sendMessage(int socket_fd, const char *message, struct sockaddr_in *dest_addr, socklen_t dest_len)
+// {
+//     sendto(socket_fd, message, strlen(message), 0, (struct sockaddr *)dest_addr, dest_len);
+// }
+
+// // Function to receive message from any client
+// void receiveMessage(int socket_fd, char *buffer, struct sockaddr *src_addr, socklen_t *src_len)
+// {
+//     ssize_t n = recvfrom(socket_fd, buffer, MAXLINE, 0, src_addr, src_len);
+//     buffer[n] = '\0';
+//     // return n;
+// }
+
+
+void sendMessage(int sockfd, const char *msg) {
+    write(sockfd, msg, strlen(msg));
 }
 
-// Function to receive message from any client
-void receiveMessage(int socket_fd, char *buffer, struct sockaddr *src_addr, socklen_t *src_len)
-{
-    ssize_t n = recvfrom(socket_fd, buffer, MAXLINE, 0, src_addr, src_len);
-    buffer[n] = '\0';
-    // return n;
+void receiveMessage(int sockfd, char *buffer) {
+    memset(buffer, 0, MAXLINE);
+    read(sockfd, buffer, sizeof(buffer));
 }
 
-int main(int argc, char *argv[])
-{
-    if (argc != 2)
-    {
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
         printf("Usage: ./server PortNumber\n");
         return 1;
     }
+
     init();
     readUserDataFromFile();
 
     int PORT = atoi(argv[1]);
-
     char buffer[MAXLINE];
-    int listenfd;
+    int listenfd, connfd;
     socklen_t len;
     struct sockaddr_in servaddr, cliaddr;
     memset(&servaddr, 0, sizeof(servaddr));
 
-    // Create a UDP Socket
-    listenfd = socket(AF_INET, SOCK_DGRAM, 0);
+    // Create a TCP Socket
+    listenfd = socket(AF_INET, SOCK_STREAM, 0);
     servaddr.sin_addr.s_addr = htonl(INADDR_ANY);
     servaddr.sin_port = htons(PORT);
     servaddr.sin_family = AF_INET;
@@ -127,74 +137,60 @@ int main(int argc, char *argv[])
     // Bind server address to socket descriptor
     bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 
+    // Listen for incoming connections
+    listen(listenfd, SOMAXCONN);
+
     printf("[+] Server listening on port %d\n", PORT);
 
-    // Receive the datagram
+    // Accept a client connection
     len = sizeof(cliaddr);
+    connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &len);
 
     char msg[MAXLINE];
     char username[MAXLINE], password[MAXLINE];
 
     int count = 0;
-    // int n;
 
-    while (1)
-    {
-        if (!isAnonymous())
-        {
+    while (1) {
+        if (!isAnonymous()) {
             // ask for new password
-            receiveMessage(listenfd, buffer, (struct sockaddr *)&cliaddr, &len);
+            receiveMessage(connfd, buffer);
             strcpy(password, buffer);
-            if (strcmp(password, "bye") == 0)
-            {
+            if (strcmp(password, "bye") == 0) {
                 strcpy(msg, "Seeya!");
-                sendMessage(listenfd, msg, &cliaddr, len);
+                sendMessage(connfd, msg);
                 printf("User %s logged out\n", currentUser.username);
                 strcpy(currentUser.username, "anonymous");
                 strcpy(currentUser.password, "anonymous");
                 currentUser.status = -1;
-                // close(listenfd);
+                // close(connfd);
                 continue;
-            }
-            else
-            {
+            } else {
                 int hasSpecialChar = 0;
                 char alphabets[1024] = ""; // Initialize the strings with empty strings
                 char digits[1024] = "";
-                for (int i = 0; i < strlen(password); i++)
-                {
-                    if ((password[i] >= 'a' && password[i] <= 'z') || (password[i] >= 'A' && password[i] <= 'Z'))
-                    {
+                for (int i = 0; i < strlen(password); i++) {
+                    if ((password[i] >= 'a' && password[i] <= 'z') || (password[i] >= 'A' && password[i] <= 'Z')) {
                         strncat(alphabets, &password[i], 1);
-                    }
-                    else if (isdigit(password[i]))
-                    {
+                    } else if (isdigit(password[i])) {
                         strncat(digits, &password[i], 1);
-                    }
-                    else
-                    {
+                    } else {
                         // Found a special character
                         hasSpecialChar = 1;
                         break;
                     }
                 }
 
-                if (hasSpecialChar)
-                {
+                if (hasSpecialChar) {
                     strcpy(msg, "Error\n");
                     printf("%s\n", msg);
-                    sendMessage(listenfd, msg, &cliaddr, len);
+                    sendMessage(connfd, msg);
                     continue;
-                }
-                else
-                {
-                    // printf("Xâu chứa các ký tự chữ cái: %s\n", alphabets);
-                    // printf("Xâu chứa các ký tự chữ số: %s\n", digits);
-                    // strcpy(msg, "Password is changed.");
+                } else {
                     strcpy(msg, alphabets);
                     strcat(msg, "\n");
                     strcat(msg, digits);
-                    sendMessage(listenfd, msg, &cliaddr, len);
+                    sendMessage(connfd, msg);
 
                     strcpy(currentUser.password, password);
                     updatePassword(userList, currentUser);
@@ -205,25 +201,23 @@ int main(int argc, char *argv[])
                 }
             }
         }
-        len = sizeof(cliaddr);
-        receiveMessage(listenfd, buffer, (struct sockaddr *)&cliaddr, &len);
+
+        receiveMessage(connfd, buffer);
         strcpy(username, buffer);
-        receiveMessage(listenfd, buffer, (struct sockaddr *)&cliaddr, &len);
+        receiveMessage(connfd, buffer);
         strcpy(password, buffer);
 
-        for (int i = 0; i < strlen(username); i++)
-        {
-            if (username[i] == ' ')
-            {
+        printf("username: %s password: %s\n", username, password);
+
+        for (int i = 0; i < strlen(username); i++) {
+            if (username[i] == ' ') {
                 printf("Username cannot contain spaces. Please enter a valid username.\n");
                 continue;
             }
         }
 
-        for (int i = 0; i < strlen(password); i++)
-        {
-            if (password[i] == ' ')
-            {
+        for (int i = 0; i < strlen(password); i++) {
+            if (password[i] == ' ') {
                 printf("Password cannot contain spaces. Please enter a valid password.\n");
                 continue;
             }
@@ -232,43 +226,39 @@ int main(int argc, char *argv[])
         User tmp_user = createUser(username, password, -1, "");
         int login_status = userExists(userList, &tmp_user);
 
-        if (count == 3)
-        {
+        if (count == 3) {
             if (login_status == 1)
                 printf("Account is blocked\n");
             block(userList, tmp_user);
             strcpy(msg, "Account is blocked");
-            sendMessage(listenfd, msg, &cliaddr, len);
+            sendMessage(connfd, msg);
             count = 0;
             continue;
         }
 
-        if (tmp_user.status == 0)
-        {
+        if (tmp_user.status == 0) {
             strcpy(msg, "Account is blocked");
-            sendMessage(listenfd, msg, &cliaddr, len);
+            sendMessage(connfd, msg);
             printf("User %s is locked.\n", tmp_user.username);
             printf("Contact administration for unlocking the user\n");
             continue;
         }
 
-        if (login_status == 1)
-        {
+        if (login_status == 1) {
             strcpy(msg, "OK");
-            sendMessage(listenfd, msg, &cliaddr, len);
+            sendMessage(connfd, msg);
             printf("User %s successfully signed in.\n", username);
             setStatusLogin(tmp_user);
             continue;
-        }
-        else
-        {
+        } else {
             strcpy(msg, "not OK");
-            sendMessage(listenfd, msg, &cliaddr, len);
+            sendMessage(connfd, msg);
             printf("Invalid username/password.\n");
         }
         count++;
     }
 
+    close(connfd);
     close(listenfd);
 
     return 0;
