@@ -110,6 +110,7 @@ void sendMessage(int sockfd, const char *msg) {
 void receiveMessage(int sockfd, char *buffer) {
     memset(buffer, 0, MAXLINE);
     read(sockfd, buffer, sizeof(buffer));
+    buffer[strlen(buffer)-1] = '\0';
 }
 
 int main(int argc, char *argv[]) {
@@ -206,8 +207,6 @@ int main(int argc, char *argv[]) {
         strcpy(username, buffer);
         receiveMessage(connfd, buffer);
         strcpy(password, buffer);
-
-        printf("username: %s password: %s\n", username, password);
 
         for (int i = 0; i < strlen(username); i++) {
             if (username[i] == ' ') {
