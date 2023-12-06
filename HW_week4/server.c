@@ -23,7 +23,7 @@ void init()
     currentUser = createUser("anonymous", "anonymous", -1, "");
     predefinedCode = "20205027";
     userList = NULL;
-    accountDataFile = "nguoidung.txt";
+    accountDataFile = "accounts.txt";
 }
 
 void readUserDataFromFile()
